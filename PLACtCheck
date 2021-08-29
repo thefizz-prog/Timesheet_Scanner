@@ -1,0 +1,2114 @@
+Sub PLAct(TheSourceFile, staffCode, currentWorkWeek)
+
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' This macro checks that the information entered on the staffs timesheet is as expected
+' I.e there are not numbers where there should be letters and visa versa.
+' Also checks that there is no missing row or column data.
+' If there is then fail this test and record the failure in the stafflist workbook
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' ARGUMENTS
+' TheSourceFile = The staff timesheet file path
+' staffCode = unique staff identifier
+' currentWorkWeek = the current workweek
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+    Dim projects As Workbook
+    Set projects = Workbooks.Open("C:\Users\tfinucane\Documents\Timesheet Harvesting\Project Number List.xlsm", 0, True)
+
+    Dim staffTimesheet As Workbook
+    Set staffTimesheet = Workbooks.Open(TheSourceFile, 0, True)
+    Dim currentWorkWeek1 As String
+    currentWorkWeek1 = "WW" + CStr(currentWorkWeek)
+    Dim stafftimesheetCurrentWorkweek As Worksheet
+    Set stafftimesheetCurrentWorkweek = staffTimesheet.Worksheets(currentWorkWeek1)
+   
+    
+    Dim staffList As Workbook
+        Set staffList = ThisWorkbook
+    Dim stafflistCurrentWeek As Worksheet
+        Set stafflistCurrentWeek = staffList.Worksheets("WW" & CStr(currentWorkWeek))                                  ' POINTS to the StaffList worksheet in the stafflist workbook
+    '' MsgBox "Pointing at sheet:" & stafflistCurrentWeek.Name
+    
+    Dim mondayColumn As Integer
+        mondayColumn = 7
+    Dim sundayColumn As Integer
+        sundayColumn = 25
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    ' Holds the codes used for abenses, holidays etc.
+    ' Every staff memeber is automatically a memeber of these workbooks and are automatically listed as being "acvtive" on these projects
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    Dim trainingCourseInternalTrainingSelfTrainingCode As Integer
+        trainingCourseInternalTrainingSelfTrainingCode = 21902
+    
+    Dim annualLeavePublicCompanyHoliday As Integer
+        annualLeavePublicCompanyHoliday = 21904
+        
+    Dim sickStudyExamOtherLeaveTimeInLieu As Integer
+        sickStudyExamOtherLeaveTimeInLieu = 21905
+        
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+    Dim allowanceLetter1 As String
+        allowanceLetter1 = "D"
+    Dim allowanceLetter2 As String
+        allowanceLetter2 = "d"
+    Dim allowanceLetter3 As String
+        allowanceLetter3 = "H"
+    Dim allowanceLetter4 As String
+        allowanceLetter4 = "h"
+'    Dim last_row As Integer
+'    last_row = projects.Worksheets("Project Numbers").Cells(Rows.count, 2).End(xlUp).Row    ' gets last used row in in in project number list
+    
+    Dim last_row As Long
+    last_row = stafflistCurrentWeek.Cells(Rows.count, 1).End(xlUp).Row                        ' GETs the last used row in stafflist workbook
+    
+    If (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(12, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(12, 2).Value) _
+            And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(12, 5).Value)) Then
+            '' MsgBox "Columns 1,2,5 empty"
+    End If
+ 
+    Dim count As Integer
+    count = 0
+
+    Dim counter As Integer
+    counter = 0
+    '' MsgBox "Timesheet name" & stafftimesheetCurrentWorkweek.Name
+    
+ Dim missingPLAct(500) As Variant
+    
+    For p = 7 To 19
+    
+    '' MsgBox "Row:" & p
+        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+        ' Conditional check to see if any row with entered hours is missing a Project number, Prpject Code P, L Description and Act. If yes count = count +1
+        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+        If ((Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 7)) Or Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 10)) Or Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 13)) _
+            Or Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 16)) Or Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 19)) Or Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 22)) _
+            Or Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 25)))) Then
+                
+                
+
+            For Weekday1 = mondayColumn To sundayColumn
+                
+                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                ' If entry in a weekday column that is not a number then flag this and
+                ' fail the PLAct test
+                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                If Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, Weekday1)) And Not Application.WorksheetFunction.IsNumber(stafftimesheetCurrentWorkweek.Cells(p, Weekday1)) Then
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Column: " & stafftimesheetCurrentWorkweek.Cells(4, Weekday1) & " - Entry not a number"     ' add description of timesheet error to array
+                    counter = counter + 2
+                End If
+                
+                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                ' If entry in the "A" column is not "D","d","H" or "h" then flag as invalid entry
+                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+                If (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, Weekday1 + 1)) And stafftimesheetCurrentWorkweek.Cells(p, Weekday1 + 1) <> allowanceLetter1) _
+                    Or (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, Weekday1 + 1)) And stafftimesheetCurrentWorkweek.Cells(p, Weekday1 + 1) <> allowanceLetter2) _
+                       Or (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, Weekday1 + 1)) And stafftimesheetCurrentWorkweek.Cells(p, Weekday1 + 1) <> allowanceLetter3) _
+                            Or (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, Weekday1 + 1)) And stafftimesheetCurrentWorkweek.Cells(p, Weekday1 + 1) <> allowanceLetter4) Then
+                            
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Column: Allowance " & stafftimesheetCurrentWorkweek.Cells(p, Weekday1 + 1) & " - invalid choice" ' add description of timesheet error to array
+                    counter = counter + 2
+                End If
+                Weekday1 = Weekday1 + 2
+            Next Weekday1
+                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                ' Checks if staff has entered the code for leave, absense or holiday (defined above). If yes then the Project code, P & L should be empty. Ay non empty cells are flagged and
+                ' the PLAct check fails for the timsheet
+                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+            If (stafftimesheetCurrentWorkweek.Cells(p, 1)) = trainingCourseInternalTrainingSelfTrainingCode Or (stafftimesheetCurrentWorkweek.Cells(p, 1)) = annualLeavePublicCompanyHoliday _
+                Or (stafftimesheetCurrentWorkweek.Cells(p, 1)) = sickStudyExamOtherLeaveTimeInLieu Then
+
+                            ''''''''''''''''''''''''''''''''''''''''''''''
+                            ''''''''''''''''''''''''''''''''''''''''''''''
+                            ' 3 fields 1 present
+                            '''''''''''''''''''''''''''''''''''''''''''''
+                        If IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) Then
+                                    
+                                    count = count + 1
+                                    missingPLAct(counter) = p       ' add row # to array
+                                    missingPLAct(counter + 1) = "L should be empty"     ' add description of timesheet error to array
+                                    counter = counter + 2
+                                    
+                        ElseIf IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) Then
+        
+                                    count = count + 1
+                                    missingPLAct(counter) = p       ' add row # to array
+                                    missingPLAct(counter + 1) = "P should be empty"     ' add description of timesheet error to array
+                                    counter = counter + 2
+                        
+                        ElseIf IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) Then
+                                    
+                                    count = count + 1
+                                    missingPLAct(counter) = p       ' add row # to array
+                                    missingPLAct(counter + 1) = "Project Code should be empty"     ' add description of timesheet error to array
+                                    counter = counter + 2
+                            ''''''''''''''''''''''''''''''''''''''''''''''
+                            ''''''''''''''''''''''''''''''''''''''''''''''
+                            ' 3 fields 2 present
+                            '''''''''''''''''''''''''''''''''''''''''''''
+                        ElseIf IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) Then
+                                    
+                                    count = count + 1
+                                    missingPLAct(counter) = p       ' add row # to array
+                                    missingPLAct(counter + 1) = "P & L should be empty"     ' add description of timesheet error to array
+                                    counter = counter + 2
+                                    
+                        ElseIf IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) Then
+        
+                                    count = count + 1
+                                    missingPLAct(counter) = p       ' add row # to array
+                                    missingPLAct(counter + 1) = "Project Code & L should be empty"     ' add description of timesheet error to array
+                                    counter = counter + 2
+                        
+                        ElseIf IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) Then
+                                    
+                                    count = count + 1
+                                    missingPLAct(counter) = p       ' add row # to array
+                                    missingPLAct(counter + 1) = "Project Code & P should be empty"     ' add description of timesheet error to array
+                                    counter = counter + 2
+                                    
+                            ''''''''''''''''''''''''''''''''''''''''''''''
+                            ''''''''''''''''''''''''''''''''''''''''''''''
+                            ' 3 fields 3 present
+                            '''''''''''''''''''''''''''''''''''''''''''''
+                        ElseIf Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) Then
+                
+                                    count = count + 1
+                                    missingPLAct(counter) = p       ' add row # to array
+                                    missingPLAct(counter + 1) = "Project Code,P & L should be empty"     ' add description of timesheet error to array
+                                    counter = counter + 2
+                        End If
+                        GoTo nextRow
+            End If
+            
+            ''''''''''''''''''''''''''''''''
+            ' 6 fields missing 5
+            '''''''''''''''''''''''''''''''
+            If (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Number " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project code, P, L,Description and Act."     ' add description of timesheet error to array
+                    counter = counter + 2
+                    '' MsgBox "Missing Project code, P, L,Description and Act." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project code " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project number, P, L, Description and Act. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                   ' ' MsgBox "Missing Project number, P, L, Description and Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing 'P' " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project number, Project Code, L, Description and Act."     ' add description of timesheet error to array
+                    counter = counter + 2
+                   ' ' MsgBox "Missing Project number, Project Code, L, Description and Act." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing 'L' " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project number, Project Code, P, Description and Act."     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project number, Project Code, P, Description and Act." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Description " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project number, Project Code, P, L and Act."     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project number, Project Code, P, L and Act." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+             ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Act " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project number, Project Code, P, L and Description "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project number, Project Code, P, L and Description " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+             
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+     ' 6 fields missing 4
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing P, L., Description & Act " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing P, L., Description & Act "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing P, L., Description & Act " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project code, L., Description & Act " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project code, L., Description & Act "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project code, L., Description & Act " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Code, P., Description & Act " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Code, P., Description & Act "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Code, P., Description & Act " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Code, P, L & Act " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Code, P, L & Act "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Code, P, L & Act " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Code, P, L & Description " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Code, P, L & Description "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Code, P, L & Description  " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Number, L , Description & Act" & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number, L , Description & Act"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number, L , Description & Act" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Number, P , Description & Act" & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number, P , Description & Act"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number, P , Description & Act" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Number, P , L & Act" & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number, P , L & Act"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number, P , L & Act" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Number, P , L & Description" & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number, P , L & Description"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number, P , L & Description" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Number, Project Code,  Description & Act." & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number, Project Code,  Description & Act."     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number, Project Code,  Description & Act." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    ' MsgBox "Missing Project Number, Project Code, L & Act ." & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number, Project Code, L & Act."     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number, Project Code, L & Act." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    ' MsgBox "Missing Project Number, Project Code, L & Description" & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number, Project Code, L & Description"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number, Project Code, L & Description" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Number, Project Code, P & Act" & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number, Project Code, P & Act"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number, Project Code, P & Act" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Number, Project Code, P & Description" & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number, Project Code, P & Description"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number, Project Code, P & Description" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+             ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Number, Project Code, P & L" & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number, Project Code, P & L"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number, Project Code, P & L" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+             'End If
+
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    '6 fields 3 missing
+    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing L, Description & Act " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing L, Description & Act"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing L, Description & Act" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "P. , Description. & Act " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "P. , Description. & Act "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "P. , Description. & Act " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "P. , L. & Act " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "P. , L. & Act  "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "P. , L. & Act " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "P. , L. & Description " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "P. , L. & Description  "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "P. , L. & Description " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Project Code,  Description & Act. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Code,  Description & Act. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Code,  Description & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Project Code,  L & Act. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Code,  L & Act. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Code,  L & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Project Code,  L & Description " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Code,  L & Description  "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Code,  L & Description  " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Project Code,  P & Act. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Code,  P & Act."     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Code,  P & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Project Code,  P & Description " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Code,  P & Description "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Code,  P & Description " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Project Code,  P & L " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Code,  P & L "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Code,  P & L " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Project Number,  Description & Act. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Number,  Description & Act. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Number,  Description & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Project Number,  L & Act. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Number,  L & Act.  "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Number,  L & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Project Number,  L & Description. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Number,  L & Description. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Number,  L & Description. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Project Number,  P & Act. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Number,  P & Act. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Number,  P & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Project Number,  P & Description. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Number,  P & Description. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Number,  P & Description. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Project Number,  P & L. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Number,  P & L. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Number,  P & L. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Project Number,  Project Code & Act. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Number,  Project Code & Act. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Number,  Project Code & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Project Number,  Project Code & Description. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Number,  Project Code & Description. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Number,  Project Code & Description. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                   ' ' MsgBox "Project Number,  Project Code & L. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Number,  Project Code & L. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Number,  Project Code & L. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Project Number,  Project Code & P. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Project Number,  Project Code & P.  "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Project Number,  Project Code & P.  " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+            'End If
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    '6 fields missing 2
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Description & Act " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Description & Act"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Description & Act" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing L & Act " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing L & Act "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing L & Act " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing L & Description " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing L & Description "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing L & Description " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing P & Act " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing P & Act"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing P & Act" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                   ' ' MsgBox "Missing P & Description " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing P & Description"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing P & Description" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    ' MsgBox "Missing P & L " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing P & L "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing P & L " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                   ' ' MsgBox "Missing Project Code & Act. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Code & Act.  "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Code & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Code & Description. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Code & Description."     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Code & Description." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Code & L. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Code & L. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Code & L. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Code & P. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Code & P. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Code & P. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    ' MsgBox "Missing Project Number & Act. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number & Act. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Number & Description. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number & Description. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number & Description. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Number & L. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number & L. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number & L. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Number & P. " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number & P. "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number & P.  " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+
+             ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Number & Project Code " & vbNewLine & "Row:" & p
+
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number & Project Code "     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number & Project Code " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+            'End If
+
+    
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    ' 6 fields 1 missing
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+            
+            
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Act. " & vbNewLine & "Row:" & p
+                
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Act."     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Act." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+                
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Description" & vbNewLine & "Row:" & p
+            
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Description"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Description" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+            
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing 'L'" & vbNewLine & "Row:" & p
+            
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing 'L'"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing 'L'" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+            
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing 'P'" & vbNewLine & "Row:" & p
+            
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing 'P'"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing 'P'" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+            
+            ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Code" & vbNewLine & "Row:" & p
+            
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Code"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Code" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+            
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Number" & vbNewLine & "Row:" & p
+            
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number"     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+            
+        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+            ' 6 fields 6 missing
+        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+            ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                    '' MsgBox "Missing Project Number, Project Code, P, L , Text Description & Act." & vbNewLine & "Row:" & p
+            
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Missing Project Number, Project Code, P, L , Text Description & Act."     ' add description of timesheet error to array
+                    counter = counter + 2
+                    ' MsgBox "Missing Project Number, Project Code, P, L , Text Description & Act." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+            
+            
+            End If
+        
+       ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+       ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+        ' Conditional check to see if any row with no hours but has a Project number, Project Code P, L Description and Act. If yes count = count +1
+        ElseIf ((IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 7).Value) Or IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 10).Value) Or IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 13).Value) _
+            Or IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 16).Value) Or IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 19).Value) Or IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 22).Value) _
+            Or IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 25).Value))) Then
+
+
+            '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+            '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+            ' If entry in a weekday column that is not a number then flag this and
+            ' fail the PLAct test
+            '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+            For Weekday1 = mondayColumn To sundayColumn
+                If Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, Weekday1)) And Not Application.WorksheetFunction.IsNumber(stafftimesheetCurrentWorkweek.Cells(p, Weekday1)) Then
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Column: " & stafftimesheetCurrentWorkweek.Cells(4, Weekday1) & " - Entry not a number"     ' add description of timesheet error to array
+                    counter = counter + 2
+                End If
+                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                ' If entry in the "A" column is not "D","d","H" or "h" then flag as invalid entry
+                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+                If stafftimesheetCurrentWorkweek.Cells(p, Weekday1 + 1) <> allowanceLetter1 Or stafftimesheetCurrentWorkweek.Cells(p, Weekday1 + 1) <> allowanceLetter2 Or stafftimesheetCurrentWorkweek.Cells(p, Weekday1 + 1) _
+                    <> allowanceLetter3 Or stafftimesheetCurrentWorkweek.Cells(p, Weekday1 + 1) <> allowanceLetter4 Then
+                    count = count + 1
+                    missingPLAct(counter) = p       ' add row # to array
+                    missingPLAct(counter + 1) = "Column: Allowance " & stafftimesheetCurrentWorkweek.Cells(p, Weekday1 + 1) & " - invalid choice" ' add description of timesheet error to array
+                    counter = counter + 2
+                End If
+                Weekday1 = Weekday1 + 2
+            Next Weekday1
+            
+                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                ' Checks if staff has entered the code for leave, absense or holiday (defined above). If yes then the Project code, P & L should be empty. Ay non empty cells are flagged and
+                ' the PLAct check fails for the timsheet
+                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+            If (stafftimesheetCurrentWorkweek.Cells(p, 1)) = trainingCourseInternalTrainingSelfTrainingCode Or (stafftimesheetCurrentWorkweek.Cells(p, 1)) = annualLeavePublicCompanyHoliday _
+                Or (stafftimesheetCurrentWorkweek.Cells(p, 1)) = sickStudyExamOtherLeaveTimeInLieu Then
+
+
+                                    
+                            ''''''''''''''''''''''''''''''''''''''''''''''
+                            ''''''''''''''''''''''''''''''''''''''''''''''
+                            ' 3 fields 1 present
+                            '''''''''''''''''''''''''''''''''''''''''''''
+                        If IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) Then
+                                    
+                                    count = count + 1
+                                    missingPLAct(counter) = p       ' add row # to array
+                                    missingPLAct(counter + 1) = "L should be empty"     ' add description of timesheet error to array
+                                    counter = counter + 2
+                                    
+                        ElseIf IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) Then
+        
+                                    count = count + 1
+                                    missingPLAct(counter) = p       ' add row # to array
+                                    missingPLAct(counter + 1) = "P should be empty"     ' add description of timesheet error to array
+                                    counter = counter + 2
+                        
+                        ElseIf IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) Then
+                                    
+                                    count = count + 1
+                                    missingPLAct(counter) = p       ' add row # to array
+                                    missingPLAct(counter + 1) = "Project Code should be empty"     ' add description of timesheet error to array
+                                    counter = counter + 2
+                            ''''''''''''''''''''''''''''''''''''''''''''''
+                            ''''''''''''''''''''''''''''''''''''''''''''''
+                            ' 3 fields 2 present
+                            '''''''''''''''''''''''''''''''''''''''''''''
+                        ElseIf IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) Then
+                                    
+                                    count = count + 1
+                                    missingPLAct(counter) = p       ' add row # to array
+                                    missingPLAct(counter + 1) = "P & L should be empty"     ' add description of timesheet error to array
+                                    counter = counter + 2
+                                    
+                        ElseIf IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) Then
+        
+                                    count = count + 1
+                                    missingPLAct(counter) = p       ' add row # to array
+                                    missingPLAct(counter + 1) = "Project Code & L should be empty"     ' add description of timesheet error to array
+                                    counter = counter + 2
+                        
+                        ElseIf IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) Then
+                                    
+                                    count = count + 1
+                                    missingPLAct(counter) = p       ' add row # to array
+                                    missingPLAct(counter + 1) = "Project Code & P should be empty"     ' add description of timesheet error to array
+                                    counter = counter + 2
+                                    
+                            ''''''''''''''''''''''''''''''''''''''''''''''
+                            ''''''''''''''''''''''''''''''''''''''''''''''
+                            ' 3 fields 3 present
+                            '''''''''''''''''''''''''''''''''''''''''''''
+                        ElseIf Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) Then
+                
+                                    count = count + 1
+                                    missingPLAct(counter) = p       ' add row # to array
+                                    missingPLAct(counter + 1) = "Project Code,P & L should be empty"     ' add description of timesheet error to array
+                                    counter = counter + 2
+                        End If
+                        GoTo nextRow
+            End If
+            
+             
+                ''''''''''''''''''''''''''''''''
+                ' 6 fields missing 5
+                '''''''''''''''''''''''''''''''
+                If (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Number " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours, Project code, P, L Description and Act. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project code, P, L Description and Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project code " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours, Project number, P, L, Description and Act."     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project number, P, L, Description and Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing 'P' " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours, Project number, project code, L, Description and Act. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project number, project code, L, Description and Act." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing 'L' " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours, Project number, project code, P, Description and Act. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project number, project code, P, Description and Act." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Description " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project number, project code,P, L and Act. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project number, project code,P, L and Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                 ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Act " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project number, project code,P, L and Description "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project number, project code,P, L and Description " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+                 
+        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+         ' 6 fields missing 4
+        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing P, L., Description & Act " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,P, L., Description & Act "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing P, L., Description & Act " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project code, L., Description & Act " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project code, L., Description & Act "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project code, L., Description & Act " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Code, P., Description & Act " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours, Project Code, P., Description & Act "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Code, P., Description & Act " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Code, P, L & Act " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Code, P, L & Act "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Code, P, L & Act " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Code, P, L & Description " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Code, P, L & Description "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Code, P, L & Description  " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Number, L , Description & Act" & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number, L , Description & Act"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number, L , Description & Act" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Number, P , Description & Act" & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number, P , Description & Act"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number, P , Description & Act" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Number, P , L & Act" & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number, P , L & Act"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number, P , L & Act" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Number, P , L & Description" & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number, P , L & Description"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number, P , L & Description" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Number, Project Code,  Description & Act." & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number, Project Code,  Description & Act."     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number, Project Code,  Description & Act." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        ' MsgBox "Missing Project Number, Project Code, L & Act ." & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number, Project Code, L & Act."     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number, Project Code, L & Act." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        ' MsgBox "Missing Project Number, Project Code, L & Description" & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number, Project Code, L & Description"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number, Project Code, L & Description" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Number, Project Code, P & Act" & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number, Project Code, P & Act"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number, Project Code, P & Act" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Number, Project Code, P & Description" & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number, Project Code, P & Description"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number, Project Code, P & Description" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                 ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Number, Project Code, P & L" & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number, Project Code, P & L"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number, Project Code, P & L" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                 'End If
+
+        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+        '6 fields 3 missing
+        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing L, Description & Act " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,L, Description & Act"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing L, Description & Act" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "P. , Description. & Act " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,P. , Description. & Act "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "P. , Description. & Act " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "P. , L. & Act " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,P. , L. & Act  "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "P. , L. & Act " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "P. , L. & Description " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,P. , L. & Description  "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "P. , L. & Description " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Project Code,  Description & Act. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Code,  Description & Act. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Code,  Description & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Project Code,  L & Act. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Code,  L & Act. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Code,  L & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Project Code,  L & Description " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Code,  L & Description  "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Code,  L & Description  " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Project Code,  P & Act. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Code,  P & Act."     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Code,  P & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Project Code,  P & Description " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Code,  P & Description "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Code,  P & Description " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Project Code,  P & L " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Code,  P & L "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Code,  P & L " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Project Number,  Description & Act. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number,  Description & Act. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Number,  Description & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Project Number,  L & Act. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number,  L & Act.  "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Number,  L & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Project Number,  L & Description. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number,  L & Description. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Number,  L & Description. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Project Number,  P & Act. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number,  P & Act. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Number,  P & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Project Number,  P & Description. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number,  P & Description. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Number,  P & Description. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Project Number,  P & L. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number,  P & L. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Number,  P & L. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Project Number,  Project Code & Act. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number,  Project Code & Act. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Number,  Project Code & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Project Number,  Project Code & Description. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number,  Project Code & Description. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Number,  Project Code & Description. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                       ' ' MsgBox "Project Number,  Project Code & L. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number,  Project Code & L. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Number,  Project Code & L. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Project Number,  Project Code & P. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number,  Project Code & P.  "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Project Number,  Project Code & P.  " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+                'End If
+        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+        '6 fields missing 2
+        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Description & Act " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours, Description & Act"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Description & Act" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing L & Act " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours, L & Act "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing L & Act " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing L & Description " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,L & Description "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing L & Description " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing P & Act " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,P & Act"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing P & Act" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                       ' ' MsgBox "Missing P & Description " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,P & Description"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing P & Description" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        ' MsgBox "Missing P & L " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,P & L "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing P & L " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                       ' ' MsgBox "Missing Project Code & Act. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Code & Act.  "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Code & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Code & Description. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Code & Description."     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Code & Description." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Code & L. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Code & L. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Code & L. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Code & P. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Code & P. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Code & P. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        ' MsgBox "Missing Project Number & Act. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number & Act. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number & Act. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Number & Description. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number & Description. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number & Description. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Number & L. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number & L. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number & L. " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Number & P. " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number & P. "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number & P.  " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+
+                 ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Number & Project Code " & vbNewLine & "Row:" & p
+
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number & Project Code "     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number & Project Code " & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+
+                'End If
+
+        
+        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+        ' 6 fields 1 missing
+        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                
+                
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Act. " & vbNewLine & "Row:" & p
+                    
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Act."     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Act." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+                    
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Description" & vbNewLine & "Row:" & p
+                
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Description"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Description" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+                
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing 'L'" & vbNewLine & "Row:" & p
+                
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,'L'"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing 'L'" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+                
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing 'P'" & vbNewLine & "Row:" & p
+                
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,'P'"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing 'P'" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+                
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Code" & vbNewLine & "Row:" & p
+                
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Code"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Code" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+                
+                ElseIf (IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Number" & vbNewLine & "Row:" & p
+                
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing Hours,Project Number"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number" & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+                
+                
+            '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                ' 6 fields 0 missing - when project number, project code, P, L , Act. not empty but hours are empty
+            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                ElseIf (Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 2).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 3).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 4).Value) _
+                    And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 5).Value) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 6).Value)) Then
+                        '' MsgBox "Missing Project Number, Project Code, P, L , Text Description & Act." & vbNewLine & "Row:" & p
+                
+                        count = count + 1
+                        missingPLAct(counter) = p       ' add row # to array
+                        missingPLAct(counter + 1) = "Missing hours - Project Number, Project Code, P,L,Act. entered"     ' add description of timesheet error to array
+                        counter = counter + 2
+                        ' MsgBox "Missing Project Number, Project Code, P, L , Text Description & Act." & vbNewLine & "Row:" & p & vbNewLine & "Count:" & count
+                
+                
+                End If
+    
+       ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+       ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    End If
+nextRow:
+   Next p
+        
+        
+       'MsgBox "1:" & missingPLAct(0) & vbNewLine & "2;" & missingPLAct(1) & vbNewLine & "3:" & missingPLAct(2) & vbNewLine & "4:" & missingPLAct(3) & vbNewLine & "5:" & missingPLAct(4) & vbNewLine & "6:" & missingPLAct(5)
+                       
+    '
+    Dim ii As Integer
+    iii = 8
+
+    If count = 0 Then             ' IF count = 0 then all of the rows with entered hours have a Project number, Prpject Code P, L Description and Act.
+        For nn = 4 To last_row       ' RANGE of rows used in Stafflist. starts from 2 as need room for the column title
+
+                      ' row one holds the headings Staff name, Staff intials, Staff code and timesheet path
+                        ' MsgBox "Pointing @:" & stafflistCurrentWeek.Cells(nn, 2).Value & "Input staffcode:" & staffCode
+                        If CStr(staffCode) = CStr(stafflistCurrentWeek.Cells(nn, 2).Value) Then
+                        While Not IsEmpty(stafflistCurrentWeek.Cells(nn, iii).Value)
+                            iii = iii + 5
+                       ' ' MsgBox "0--Row:" & nn & vbNewLine & "Column:" & iii
+                        Wend
+                       ' ' MsgBox "1--Row:" & nn & vbNewLine & "Column:" & iii
+                        stafflistCurrentWeek.Cells(nn, iii).Value = "Pass"       ' GET Staff name from stafflist workbook
+                        Exit For
+                        End If
+                
+                Next nn
+    ElseIf count > 0 Then        ' IF count > 0 then one or more of the used rows are missing a Project number, Prpject Code P, L Description and Act.
+        For nn = 4 To last_row       ' RANGE of rows used in Stafflist. starts from 2 as need room for the column title
+
+   '                 nnn = 2                     ' row one holds the headings Staff name, Staff intials, Staff code and timesheet path
+                        ' MsgBox "Pointing @:" & stafflistCurrentWeek.Cells(nn, 2).Value
+                        'MsgBox "Staffcode:" & staffCode & vbNewLine & "Pointing at: " & stafflistCurrentWeek.Cells(nn, 2).Value
+                        If staffCode = CStr(stafflistCurrentWeek.Cells(nn, 2).Value) Then
+                        While Not IsEmpty(stafflistCurrentWeek.Cells(nn, iii).Value)
+                            iii = iii + 5
+
+                        Wend
+                        ' MsgBox "2--Row:" & nn & vbNewLine & "Column:" & iii
+                        stafflistCurrentWeek.Cells(nn, iii).Value = "Fail"       ' GET Staff name from stafflist workbook
+                        
+                        Dim theDate As Date
+                            theDate = Now()
+                            
+                       
+                        Dim iiii As Integer
+                            iiii = 0
+                        Dim iiiii As Integer            ' row counter to hold incorrect timesheet info that will feed PAD
+                            iiiii = 3
+                        Dim errorTrackingRowCounter As Integer
+                        Dim errorTrackingAttemptRowCounter As Integer
+                            errorTrackingAttemptRowCounter = 3
+                        Dim errorRecorded As Integer
+                            errorRecorded = 0       ' Variable to hold count of number of added errors
+                        
+                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                        ' Records all incorrect timesheet rows and places them to the RHS of attempts with a row refernce + issue identified to send to PAD
+                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                        Do While iiii < counter                  ' loop until first empty array element and add array values as comments for tracking
+                                If stafflistCurrentWeek.Cells(nn, iii).CommentThreaded Is Nothing Then      ' If the cell DOES NOT contain a comment
+        
+                                    stafflistCurrentWeek.Cells(nn, iii).AddCommentThreaded ("Row:" & missingPLAct(iiii) & vbNewLine & missingPLAct(iiii + 1) _
+                                             & vbNewLine & "Edited: " & theDate)  ' ADDs previous value of cell as comment for traceback
+                                             
+
+                                             
+                                                    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' Records all incorrect timesheet rows and places them to the RHS of attempts with a row refernce + issue identified to send to PAD
+                                                    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' If row 4 is empty this is first error for staff list for current week. Therefore Attempt is 1
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                     
+                                                    If IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79)) And IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 80)) Then
+                                                        
+            
+                                                       
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            ' Records attempt number in the error tracking list and list all errors for this attempt
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79).Value = stafflistCurrentWeek.Cells(2, iii - 3).Value
+                                                            stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79).Font.Bold = True
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''
+                
+                                                            stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                            stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                            stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 82).Value = currentWorkWeek                         ' Current Work Week
+                                                            stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 83).Value = missingPLAct(iiii)                      ' Row
+                                                            stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 84).Value = missingPLAct(iiii + 1)                ' Timesheet issue
+                                                            errorRecorded = errorRecorded + 1
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' If row 4 is not empty loop through Staff Names. For each Staff Name check that there is no corresponding Attempt: Number
+                                                    ' If the Attempt: Number to LHS matches current Attempt:Number then find first nonempty row and add error
+                                                    ' If Attempt: Number does not match current Attempt:Number Then add new Attempt:Number
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                       
+                                                    ElseIf Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79)) And Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)) Then
+                                                     
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        ' Find first empty row
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)))
+                                                        
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            ' While cycling for non empty rows check if there is an Attempt: Number to the LHS at each row
+                                                            '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            If stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79).Value = stafflistCurrentWeek.Cells(2, iii - 3).Value Then
+                                                                
+                                                                errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                ' If Attempt: Numbers match then find first empty row. We search for error row instead of attempt row
+                                                                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                    
+                                                                While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80)))
+                                                                    errorTrackingRowCounter = errorTrackingRowCounter + 1
+                                                                Wend
+                                                                    
+                                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                    ' Input error information
+                                                                    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = currentWorkWeek                         ' Current Work Week
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 83).Value = missingPLAct(iiii)                      ' Row
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 84).Value = missingPLAct(iiii + 1)                ' Timesheet issue
+                                                                errorRecorded = errorRecorded + 1
+                                                                    GoTo nextInteration
+                                                            
+                                                            
+                                                            End If
+                                                            errorTrackingAttemptRowCounter = errorTrackingAttemptRowCounter + 1
+                                                            'errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                        Wend
+                                                     
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                ' If at end of errors and no match for attempts then Attempt: Number = New Attempt in list
+                                                                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                                
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                ' Records attempt number in the error tracking list and list all errors for this attempt
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 79).Value = stafflistCurrentWeek.Cells(2, iii - 3).Value   ' Attempt: Number
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 79).Font.Bold = True                                       ' Bold fonting Attempt Number
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+            
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = currentWorkWeek                         ' Current Work Week
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 83).Value = missingPLAct(iiii)                      ' Row
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 84).Value = missingPLAct(iiii + 1)                ' Timesheet issue
+                                                                errorRecorded = errorRecorded + 1
+                                                     
+                                                     
+                                                    End If
+                                             
+
+        
+                                
+                                Else                                                        ' If a cell DOES contain a comment
+
+                                    
+                                        ' MsgBox "Current array Indexers used:" & iiii & " + " & iiii + 1
+                                        stafflistCurrentWeek.Cells(nn, iii).CommentThreaded.AddReply ("Row:" & missingPLAct(iiii) & vbNewLine & missingPLAct(iiii + 1) _
+                                             & vbNewLine & "Edited: " & theDate) ' ADDs previous value of cell as comment for traceback
+
+                                             
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' If macro call contains >1 not active staffs, decrement errorTrackingAttemptRowCounter -1 to add error item under the same Attempt: Number
+                                                    ' Failing to do this results in a Attempt: Number being created for each instance of not active staff
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    
+                                                    If errorRecorded > 0 Then
+            
+            
+                                                        If Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79)) And Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)) Then
+                                                         
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            ' Find first empty row
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)))
+                                                            
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                ' While cycling for non empty rows check if there is an Attempt: Number to the LHS at each row
+                                                                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                If stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79).Value = stafflistCurrentWeek.Cells(2, iii - 3).Value Then
+                                                                    
+                                                                    errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                    ' If Attempt: Numbers match then find first empty row. We search for error row instead of attempt row
+                                                                    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                        
+                                                                    While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80)))
+                                                                        errorTrackingRowCounter = errorTrackingRowCounter + 1
+                                                                    Wend
+                                                                        
+                                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                        ' Input error information
+                                                                            '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = currentWorkWeek                         ' Current Work Week
+                                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 83).Value = missingPLAct(iiii)                      ' Row
+                                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 84).Value = missingPLAct(iiii + 1)                ' Timesheet issue
+                                                                        errorRecorded = errorRecorded + 1
+                                                                        GoTo nextInteration
+                                                                
+                                                                
+                                                                End If
+                                                                errorTrackingAttemptRowCounter = errorTrackingAttemptRowCounter + 1
+                                                                'errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                            Wend
+                                                        
+                                                        End If
+                                                    End If
+            
+            
+            
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' If row 4 is empty this is first error for staff list for current week. Therefore Attempt is 1
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                     
+                                                    If IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79)) And IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 80)) Then
+                                                        
+            
+                                                       
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            ' Records attempt number in the error tracking list and list all errors for this attempt
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79).Value = stafflistCurrentWeek.Cells(2, iii - 3).Value
+                                                            stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79).Font.Bold = True
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''
+                
+                                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 82).Value = currentWorkWeek                         ' Current Work Week
+                                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 83).Value = missingPLAct(iiii)                      ' Row
+                                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 84).Value = missingPLAct(iiii + 1)                ' Timesheet issue
+                                                            errorRecorded = errorRecorded + 1
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' If row 4 is not empty loop through Staff Names. For each Staff Name check that there is no corresponding Attempt: Number
+                                                    ' If the Attempt: Number to LHS matches current Attempt:Number then find first nonempty row and add error
+                                                    ' If Attempt: Number does not match current Attempt:Number Then add new Attempt:Number
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                       
+                                                    ElseIf Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79)) And Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)) Then
+                                                     
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        ' Find first empty row
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)))
+                                                        
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            ' While cycling for non empty rows check if there is an Attempt: Number to the LHS at each row
+                                                            '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            If stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79).Value = stafflistCurrentWeek.Cells(2, iii - 3).Value Then
+                                                                
+                                                                errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                ' If Attempt: Numbers match then find first empty row. We search for error row instead of attempt row
+                                                                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                    
+                                                                While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80)))
+                                                                    errorTrackingRowCounter = errorTrackingRowCounter + 1
+                                                                Wend
+                                                                    
+                                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                    ' Input error information
+                                                                    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = currentWorkWeek                         ' Current Work Week
+                                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 83).Value = missingPLAct(iiii)                      ' Row
+                                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 84).Value = missingPLAct(iiii + 1)                ' Timesheet issue
+                                                                    errorRecorded = errorRecorded + 1
+                                                                    GoTo nextInteration
+                                                            
+                                                            
+                                                            End If
+                                                            errorTrackingAttemptRowCounter = errorTrackingAttemptRowCounter + 1
+                                                            'errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                        Wend
+                                                     
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                ' If at end of errors and no match for attempts then Attempt: Number = New Attempt in list
+                                                                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                                
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                ' Records attempt number in the error tracking list and list all errors for this attempt
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 79).Value = stafflistCurrentWeek.Cells(2, iii - 3).Value   ' Attempt: Number
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 79).Font.Bold = True                                       ' Bold fonting Attempt Number
+                                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+            
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = currentWorkWeek                         ' Current Work Week
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 83).Value = missingPLAct(iiii)                      ' Row
+                                                                stafflistCurrentWeek.Cells(errorTrackingRowCounter, 84).Value = missingPLAct(iiii + 1)                ' Timesheet issue
+
+                                                                errorRecorded = errorRecorded + 1
+                                                     
+                                                     
+                                                    End If
+
+                                End If
+nextInteration:
+                                iiii = iiii + 2
+                             Loop
+                     
+                        End If
+                'Exit For
+                Next nn
+    End If
+
+staffTimesheet.Close SaveChanges:=False
+Set stafftimesheetCurrentWorkweek = Nothing
+Set stafftimesheetCurrentWorkweek = Nothing
+Set staffTimesheet = Nothing
+projects.Close SaveChanges:=False
+
+
+
+    
+End Sub
