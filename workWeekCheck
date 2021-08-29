@@ -1,0 +1,373 @@
+Sub workWeekCheck(TheSourceFile, staffCode, currentWorkWeek)
+    
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' This macro check if the staff timesheet has a timesheet created for the current work week
+' if the timesheet DOESNT exist in the staff timesheet workbook then write to the stafflist workbook
+' for the current workweek  "Fail" with comment for missing week.
+'
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    
+    
+    
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' ARGUMENTS
+' TheSourceFile = The file staffs timesheet file directory
+' staffCode  = the staffs unique code identifier
+'currentWorkWeek = the current work week
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    
+    
+    Dim src As Workbook
+    Set src = Workbooks.Open(TheSourceFile, 0, True)            ' OPENs the source file - i.e the staffs timesheet
+    Dim staffTimesheetFirstWeek As Worksheet
+    Dim stafftimesheetCurrentWorkweek As Worksheet
+    Dim staffList As Workbook
+    Set staffList = ThisWorkbook
+    Dim stafflistCurrentWeek As Worksheet
+    Set stafflistCurrentWeek = staffList.Worksheets("WW" & CStr(currentWorkWeek))                                  ' POINTS to the StaffList worksheet in the stafflist workbook
+    '' MsgBox "Pointing at sheet:" & stafflistCurrentWeek.Name
+    
+    
+    Dim last_row As Long
+    
+    last_row = stafflistCurrentWeek.Cells(Rows.count, 1).End(xlUp).Row                        ' GETs the last used row in stafflist workbook
+    
+    Dim temp As String
+    Dim currentWeek As String
+    Dim firstWeek As String
+    Dim staffCode1 As String
+    Dim staffCodeStaffTimesheet As String
+    Dim staffTimesheet As String
+    
+
+    
+    Dim ii As Integer                                                                       ' the start column for weekCheck on stafflist current workweek
+    ii = 5
+    
+        
+    temp = CStr(currentWorkWeek)                                                            ' CONVERTS currentWorkWeek into string
+    staffCode1 = CStr(staffCode)                                                            ' CONVERTS staffCode into string
+   
+    
+    currentWeek = "WW" + temp
+    firstWeek = "WW1"
+    
+    staffTimesheet = src.FullName                                                   ' GETs the file path of the current staff timesheet workbook
+    
+    On Error GoTo missingWorkWeek                                                   ' IF the currentWorkWeek worksheet doesnt exist in the staffs timesheet workbook
+    Set staffTimesheetFirstWeek = src.Worksheets(firstWeek)
+    staffCodeStaffTimesheet = CStr(staffTimesheetFirstWeek.Cells(1, 14).Value)
+    Set stafftimesheetCurrentWorkweek = src.Worksheets(currentWeek)
+  '  ' MsgBox "Pointing @:" & stafftimesheetCurrentWorkweek.Name
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' ERROR HANDLING
+' If the timesheet for the current work week does not exist then fail this test, record the failure as a comment in the
+' Stafflist workbook
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+   
+   
+missingWorkWeek:
+        On Error GoTo -1
+        On Error GoTo noCurrentWorkWeek
+        Error (1034)
+        
+    Exit Sub
+    
+noCurrentWorkWeek:
+       If Not stafftimesheetCurrentWorkweek Is Nothing Then   ' if the number-currentWorkWeek -worksheet doesnt exist on staff timesheet
+    
+
+           ' ' MsgBox "Pointing at:" & last_row
+                For nn = 4 To last_row       ' RANGE of rows used in Stafflist. starts from 2 as need room for the column title
+                    
+   '                 nnn = 2                     ' row one holds the headings Staff name, Staff intials, Staff code and timesheet path
+                       ' ' MsgBox "Pointing @:" & stafflistCurrentWeek.Cells(nn, 2).Value
+                        If staffCode1 = stafflistCurrentWeek.Cells(nn, 2).Value Then
+                            '' MsgBox "Row:" & nn & vbNewLine & "Column:" & ii
+                            While Not IsEmpty(stafflistCurrentWeek.Cells(nn, ii).Value)
+                                ii = ii + 5
+                                    
+                            Wend
+                            stafflistCurrentWeek.Cells(nn, ii).Value = "Pass"       ' GET Staff name from stafflist workbook
+                            Exit For
+                        End If
+                        
+
+                
+                Next nn
+
+        Else
+         '   ' MsgBox "Pointing at:" & last_row
+                
+                For nn = 4 To last_row       ' RANGE of rows used in Stafflist. starts from 2 as need room for the column title
+                
+                            'nnn = 2                     ' row one holds the headings Staff name, Staff intials, Staff code and timesheet path
+                                '' MsgBox "Pointing @:" & stafflistCurrentWeek.Cells(nn, 2).Value & vbNewLine & "StaffCode:" & staffCode1
+                                If staffCode1 = stafflistCurrentWeek.Cells(nn, 2).Value Then
+                                    While Not IsEmpty(stafflistCurrentWeek.Cells(nn, ii).Value)
+                                        ii = ii + 5
+        
+                                    Wend
+                                stafflistCurrentWeek.Cells(nn, ii).Value = "Fail"       ' GET Staff name from stafflist workbook
+                                Exit For
+                                End If
+                Next nn
+                                
+                        
+                                            ''''''''''''''''''''''''''''''''
+                        Dim theDate As Date
+                        theDate = Now()
+                     
+                        Dim iiiii As Integer
+                            iiiii = 3
+                        Dim errorTrackingAttemptRowCounter As Integer
+                            errorTrackingAttemptRowCounter = 3
+                        Dim errorTrackingRowCounter As Integer
+                        
+                        If stafflistCurrentWeek.Cells(nn, ii).CommentThreaded Is Nothing Then      ' If the cell DOES NOT contain a comment
+                        
+                            stafflistCurrentWeek.Cells(nn, ii).AddCommentThreaded ("Missing timesheet for WW:" & currentWorkWeek & vbNewLine & "Edited: " & theDate) ' ADDs previous value of cell as comment for traceback
+                            
+                            
+                            
+                                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ' Records all incorrect timesheet rows and places them to the RHS of attempts with a row refernce + issue identified to send to PAD
+                                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                    
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ' If row 4 is empty this is first error for staff list for current week. Therefore Attempt is 1
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                         
+                                        If IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79)) And IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 80)) Then
+                                            
+
+                                           
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ' Records attempt number in the error tracking list and list all errors for this attempt
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79).Value = stafflistCurrentWeek.Cells(2, ii).Value
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79).Font.Bold = True
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+    
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 82).Value = currentWorkWeek                         ' Week Number
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 82).Value = "N/A"                                   ' Row
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 83).Value = "Timesheet for WW:" & currentWorkWeek & " does not exist"  ' Timesheet Issue
+                                           
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ' If row 4 is not empty loop through Staff Names. For each Staff Name check that there is no corresponding Attempt: Number
+                                        ' If the Attempt: Number to LHS matches current Attempt:Number then find first nonempty row and add error
+                                        ' If Attempt: Number does not match current Attempt:Number Then add new Attempt:Number
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                           
+                                        ElseIf Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79)) And Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)) Then
+                                         
+                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                            ' Find first empty row
+                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                            While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)))
+                                            
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ' While cycling for non empty rows check if there is an Attempt: Number to the LHS at each row
+                                                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                If stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79).Value = stafflistCurrentWeek.Cells(2, ii).Value Then
+                                                    
+                                                    errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' If Attempt: Numbers match then find first empty row. We search for error row instead of attempt row
+                                                    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        
+                                                    While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80)))
+                                                        errorTrackingRowCounter = errorTrackingRowCounter + 1
+                                                    Wend
+                                                        
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        ' Input error information
+                                                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = currentWorkWeek                         ' Week Number
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = "N/A"                                   ' Row
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 83).Value = "Timesheet for WW:" & currentWorkWeek & " does not exist" ' Timesheet Issue
+                                                        GoTo nextInteration
+                                                
+                                                
+                                                End If
+                                                errorTrackingAttemptRowCounter = errorTrackingAttemptRowCounter + 1
+                                                'errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                            Wend
+                                         
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' If at end of errors and no match for attempts then Attempt: Number = New Attempt in list
+                                                    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                    
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' Records attempt number in the error tracking list and list all errors for this attempt
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 79).Value = stafflistCurrentWeek.Cells(2, ii).Value   ' Attempt: Number
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 79).Font.Bold = True                                       ' Bold fonting Attempt Number
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value        ' Staff Name
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value        ' Staff Code
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = currentWorkWeek                                ' Work Week
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = "N/A"                                          ' Row
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 83).Value = "Timesheet for WW:" & currentWorkWeek & " does not exist"  ' Timesheet issue
+                                         
+                                         
+                                         
+                                        End If
+                            
+            
+                            'End If
+                            'Exit For
+                        Else                                                        ' If a cell DOES contain a comment
+                        ' ' MsgBox "Row: " & nn & "Col: " & ii & vbNewLine & stafflistCurrentWeek.Name
+                         stafflistCurrentWeek.Cells(nn, ii).CommentThreaded.AddReply ("Missing timesheet for WW:" & currentWorkWeek & vbNewLine & "Edited: " & theDate) ' ADDs previous value of cell as comment for traceback
+                          
+
+                                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ' Records all incorrect timesheet rows and places them to the RHS of attempts with a row refernce + issue identified to send to PAD
+                                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        
+                                        
+                                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ' Records all incorrect timesheet rows and places them to the RHS of attempts with a row refernce + issue identified to send to PAD
+                                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                    
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ' If row 4 is empty this is first error for staff list for current week. Therefore Attempt is 1
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                         
+                                        If IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79)) And IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 80)) Then
+                                            
+
+                                           
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ' Records attempt number in the error tracking list and list all errors for this attempt
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79).Value = stafflistCurrentWeek.Cells(2, ii).Value
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79).Font.Bold = True
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+    
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 82).Value = currentWorkWeek                         ' Week Number
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 82).Value = "N/A"                                   ' Row
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 83).Value = "Timesheet for WW:" & currentWorkWeek & " does not exist"  ' Timesheet Issue
+                                           
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ' If row 4 is not empty loop through Staff Names. For each Staff Name check that there is no corresponding Attempt: Number
+                                        ' If the Attempt: Number to LHS matches current Attempt:Number then find first nonempty row and add error
+                                        ' If Attempt: Number does not match current Attempt:Number Then add new Attempt:Number
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                           
+                                        ElseIf Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79)) And Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)) Then
+                                         
+                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                            ' Find first empty row
+                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                            While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)))
+                                            
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ' While cycling for non empty rows check if there is an Attempt: Number to the LHS at each row
+                                                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                If stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79).Value = stafflistCurrentWeek.Cells(2, ii).Value Then
+                                                    
+                                                    errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' If Attempt: Numbers match then find first empty row. We search for error row instead of attempt row
+                                                    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        
+                                                    While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80)))
+                                                        errorTrackingRowCounter = errorTrackingRowCounter + 1
+                                                    Wend
+                                                        
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        ' Input error information
+                                                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = currentWorkWeek                         ' Week Number
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = "N/A"                                   ' Row
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 83).Value = "Timesheet for WW:" & currentWorkWeek & " does not exist" ' Timesheet Issue
+                                                        GoTo nextInteration
+                                                
+                                                
+                                                End If
+                                                errorTrackingAttemptRowCounter = errorTrackingAttemptRowCounter + 1
+                                                'errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                            Wend
+                                         
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' If at end of errors and no match for attempts then Attempt: Number = New Attempt in list
+                                                    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                    
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' Records attempt number in the error tracking list and list all errors for this attempt
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 79).Value = stafflistCurrentWeek.Cells(2, iii - 1).Value   ' Attempt: Number
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 79).Font.Bold = True                                       ' Bold fonting Attempt Number
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value        ' Staff Name
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value        ' Staff Code
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = currentWorkWeek                                ' Work Week
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = "N/A"                                          ' Row
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 83).Value = "Timesheet for WW:" & currentWorkWeek & " does not exist"  ' Timesheet issue
+                                         
+                                         
+                                         
+                                        End If
+
+                                        
+
+                        
+                        End If
+                        
+    
+            End If
+
+nextInteration:
+    src.Close
+    Set src = Nothing
+'    stafflist.Close
+
+'    Set stafflist = Nothing
+        '''''''''''''''''''''''''''''
+    
+        Set staffTimesheetFirstWeek = Nothing
+    
+        Set stafftimesheetCurrentWorkweek = Nothing
+    
+
+    ''''''''''''''''''''''''''''
+    
+    
+    ''''''''''''''''''''''''''
+
+End Sub
