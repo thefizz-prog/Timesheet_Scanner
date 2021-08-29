@@ -1,0 +1,513 @@
+Sub activeProject(TheSourceFile, staffCode, currentWorkWeek)
+
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' This macro checks if all of the entered project numbers in the staff timesheet are real project numbers for the company
+' If an entered project number is not a real project number then fail this test, record the failure in the StaffList workbook
+' and record the failure as a commment
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' ARGUMENTS
+' TheSourceFile = The file directory for the given staff timesheet
+' staffCode = The unique staff identifier
+' currentWorkWeek = the current work week
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+    Dim projects As Workbook
+    Set projects = Workbooks.Open("C:\Users\tfinucane\Documents\Timesheet Harvesting\Project Number List.xlsm", 0, True)
+    Dim projectNumbers As Worksheet
+    Set projectNumbers = projects.Worksheets("Projects+Resources")
+    Dim staffTimesheet As Workbook
+    Set staffTimesheet = Workbooks.Open(TheSourceFile, 0, True)
+    Dim currentWorkWeek1 As String
+    currentWorkWeek1 = "WW" + CStr(currentWorkWeek)
+    Dim stafftimesheetCurrentWorkweek As Worksheet
+    Set stafftimesheetCurrentWorkweek = staffTimesheet.Worksheets(currentWorkWeek1)
+   
+    'MsgBox "Input are:" & vbNewLine & TheSourceFile & vbNewLine & staffCode & vbNewLine & currentWorkWeek
+    
+    Dim staffList As Workbook
+    Set staffList = ThisWorkbook
+    Dim stafflistCurrentWeek As Worksheet
+    Set stafflistCurrentWeek = staffList.Worksheets("WW" & CStr(currentWorkWeek))                                  ' POINTS to the StaffList worksheet in the stafflist workbook
+    '' MsgBox "Pointing at sheet:" & stafflistCurrentWeek.Name
+    
+    
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    ' Holds the codes used for abenses, holidays etc.
+    ' Every staff memeber is automatically a memeber of these workbooks and are automatically listed as being "acvtive" on these projects
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    Dim trainingCourseInternalTrainingSelfTrainingCode As Integer
+        trainingCourseInternalTrainingSelfTrainingCode = 21902
+    
+    Dim annualLeavePublicCompanyHoliday As Integer
+        annualLeavePublicCompanyHoliday = 21904
+        
+    Dim sickStudyExamOtherLeaveTimeInLieu As Integer
+        sickStudyExamOtherLeaveTimeInLieu = 21905
+        
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    Dim last_row As Integer
+    last_row = projects.Worksheets("Projects+Resources").Cells(Rows.count, 2).End(xlUp).Row    ' gets last used row in in in project number list
+    
+    'MsgBox "Last row in Project+Resources:" & last_row
+    Dim last_row1 As Long
+    last_row1 = stafflistCurrentWeek.Cells(Rows.count, 1).End(xlUp).Row                        ' GETs the last used row in stafflist workbook
+    
+    Dim counter As Integer
+    counter = 0                                                                             ' Counter to project codes that are not active project codes as outlined in the workbok Project Number List
+ 
+    Dim count As Integer
+    count = 0
+    Dim count1 As Integer
+    count1 = 0
+    
+    
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    ' Counts the number of project numbers that are in the staffs timesheet
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    
+    For p = 7 To 19
+        If Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(p, 1).Value) Then        ' COUNTS that counts all empty cells
+                count = count + 1
+        End If
+    Next p
+    
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    ' Counts the number project numbers in the staff timesheet that are real project numbers
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    
+    Dim iii As Integer
+    iii = 6
+    For i = 7 To 19
+        For ii = 10 To last_row
+            Dim incorrectProjectCodeArray(500) As Variant
+
+
+           ' ' MsgBox "Timesheet iterator:" & i & vbNewLine & "ProjectCC iterator" & ii
+           'MsgBox "Should have match between;" & vbNewLine & "Stafftimesheet.currentweek" & " : " & "project Number" & vbNewLine & _
+            stafftimesheetCurrentWorkweek.Cells(i, 1).Value & " : " & projectNumbers.Cells(ii, 1).Value
+            
+           
+           
+           
+            If stafftimesheetCurrentWorkweek.Cells(i, 1).Value = projectNumbers.Cells(ii, 1).Value And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(i, 1)) _
+                And Not IsEmpty(projectNumbers.Cells(ii, 2)) Then
+               ' MsgBox "Match for:" & vbNewLine & stafftimesheetCurrentWorkweek.Cells(i, 1).Value & "||" & projectNumbers.Cells(ii, 1)   ' COUNTS all stafftimesheet.currentweek non empty cells that have a
+                                                                                                                                         ' corresponding match in the project list file
+                count1 = count1 + 1
+                Exit For
+            
+            
+            ElseIf stafftimesheetCurrentWorkweek.Cells(i, 1).Value = CStr(trainingCourseInternalTrainingSelfTrainingCode) Or stafftimesheetCurrentWorkweek.Cells(i, 1).Value _
+                = CStr(annualLeavePublicCompanyHoliday) Or stafftimesheetCurrentWorkweek.Cells(i, 1).Value = CStr(sickStudyExamOtherLeaveTimeInLieu) And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(i, 1)) _
+                    And Not IsEmpty(projectNumbers.Cells(ii, 2)) Then
+            
+                count1 = count1 + 1
+                Exit For
+                
+            ElseIf stafftimesheetCurrentWorkweek.Cells(i, 1).Value <> projectNumbers.Cells(ii, 1).Value And Not IsEmpty(stafftimesheetCurrentWorkweek.Cells(i, 1)) _
+                    And Not IsEmpty(projectNumbers.Cells(ii, 2)) Then
+                        
+                 'MsgBox "stafftimesheetcurrentweek COL 1:" & stafftimesheetCurrentWorkweek.Cells(i, 1).Value & vbNewLine & "ProjectNResources COL 1:" & projectNumbers.Cells(ii, 1).Value _
+                     & vbNewLine & " SHOULDNT be empty" & stafftimesheetCurrentWorkweek.Cells(i, 1) & vbNewLine & " SHOULDNT be empty" & projectNumbers.Cells(ii, 2)
+                        
+                        Dim count2 As Integer
+                        count2 = 0
+                        ' ' MsgBox "BEFORE Count2:" & count2 & "Suspected incorrec proj code:" & stafftimesheetCurrentWorkweek.Cells(i, 1).Value
+                        For ix = 2 To last_row                                          ' if current row on stafftimesheet.projectnumber matches in the project number.projectnumber file increase count
+                            If stafftimesheetCurrentWorkweek.Cells(i, 1).Value = projectNumbers.Cells(ix, 1).Value Then
+                                count2 = count2 + 1
+                            End If
+                        Next ix
+                        '' MsgBox "AFTER Count2:" & count2
+                        If count2 = 0 Then                                                    ' if count =0 then there has been no match and therefore current row on stafftimesheet.projectnumber
+                                                                                              ' is not an active project as per project codes supplied in project number.projectnumber workbook
+                            incorrectProjectCodeArray(counter) = i
+                            incorrectProjectCodeArray(counter + 1) = stafftimesheetCurrentWorkweek.Cells(i, 1).Value
+                            '' MsgBox "Catching incorrect Project Codes" & vbNewLine & "Stafftimesheet Row:" & i & vbNewLine & "proj#:" & stafftimesheetCurrentWorkweek.Cells(i, 1).Value _
+                                    & vbNewLine & "Array index:" & counter
+                            counter = counter + 2
+                            Exit For
+                        End If
+            End If
+        Next ii
+    Next i
+    '' MsgBox "Array indexer:" & counter
+    '' MsgBox "Count:" & count & vbNewLine & "Count1:" & count1
+     ''MsgBox "Row#:" & incorrectProjectCodeArray(0) & vbNewLine & incorrectProjectCodeArray(1) & vbNewLine & "Row#:" & incorrectProjectCodeArray(2) & vbNewLine & incorrectProjectCodeArray(3) & vbNewLine
+    
+    
+    
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    ' IF count = count 1 then all of the entered project numbers exist as active project numbers in the project list file
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    
+    If count = count1 Then              '
+       ' ' MsgBox "Last Row:" & last_row
+        For nn = 4 To last_row1       ' RANGE of rows used in Stafflist. starts from 2 as need room for the column title
+                    
+                      ' row one holds the headings Staff name, Staff intials, Staff code and timesheet path
+                       ' ' MsgBox "Pointing @:" & stafflistCurrentWeek.Cells(nn, 2).Value & "Input staffcode:" & staffCode
+                        If staffCode = CStr(stafflistCurrentWeek.Cells(nn, 2).Value) Then
+                        While (Not IsEmpty(stafflistCurrentWeek.Cells(nn, iii).Value))          ' if weekcheck and active project are not empty skip to next active project cell
+                            iii = iii + 5
+                        '' MsgBox "0--Row:" & nn & vbNewLine & "Column:" & iii
+                        Wend
+                       ' ' MsgBox "1--Row:" & nn & vbNewLine & "Column:" & iii
+                        stafflistCurrentWeek.Cells(nn, iii).Value = "Pass"       ' GET Staff name from stafflist workbook
+                        Exit For
+                        End If
+                'MsgBox "Stafffcode:" & staffCode & vbNewLine & "Supposed match:" & stafflistCurrentWeek.Cells(nn, 2).Value
+                
+                Next nn
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    ' IF count <> count 1 then all of the entered project numbers do not exist as active project numbers in the project list file
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                
+    ElseIf count <> count1 Then         ' IF count != count 1 then all of the entered project numbers do not exist as active project numbers in the project list file
+        For nn = 4 To last_row1       ' RANGE of rows used in Stafflist. starts from 2 as need room for the column title
+                    '' MsgBox "Last Row:" & last_row
+   '                 nnn = 2                     ' row one holds the headings Staff name, Staff intials, Staff code and timesheet path
+                      '  ' MsgBox "Pointing @:" & stafflistCurrentWeek.Cells(nn, 2).Value
+                     
+                        If staffCode = stafflistCurrentWeek.Cells(nn, 2).Value Then
+                         '' MsgBox "Pointing @:" & stafflistCurrentWeek.Cells(nn, 2).Value & vbNewLine & "Row:" & nn & "Column:" & iii
+                            While (Not IsEmpty(stafflistCurrentWeek.Cells(nn, iii).Value))
+                                iii = iii + 5
+                                    
+                            Wend
+                          
+                            stafflistCurrentWeek.Cells(nn, iii).Value = "Fail"      ' GET Staff name from stafflist workbook
+                            
+                            Dim theDate As Date
+                            theDate = Now()
+    
+                            '' MsgBox "indexer max:" & counter
+                  
+                            Dim iiii As Integer
+                                iiii = 0
+
+                            Dim errorTrackingRowCounter As Integer
+                            Dim errorTrackingAttemptRowCounter As Integer
+                                errorTrackingAttemptRowCounter = 3
+                            Dim errorRecorded As Integer
+                                errorRecorded = 0
+                           Do While iiii < counter                  ' loop until first empty array element and add array values as comments for tracking
+                                
+
+                                If stafflistCurrentWeek.Cells(nn, iii).CommentThreaded Is Nothing Then      ' If the cell DOES NOT contain a comment
+        
+                                    stafflistCurrentWeek.Cells(nn, iii).AddCommentThreaded ("Row:" & incorrectProjectCodeArray(iiii) & vbNewLine & "Incorrect Project No." _
+                                        & incorrectProjectCodeArray(iiii + 1) & vbNewLine & "Edited: " & theDate) ' ADDs previous value of cell as comment for traceback
+                                        '' MsgBox "Array Indexers used:" & iiii & " + " & iiii + 1
+                                        
+                                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ' Records all incorrect timesheet rows and places them to the RHS of attempts with a row refernce + issue identified to send to PAD
+                                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                    
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ' If row 4 is empty this is first error for staff list for current week. Therefore Attempt is 1
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                         
+                                        If IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79)) And IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 80)) Then
+                                            
+
+                                           
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ' Records attempt number in the error tracking list and list all errors for this attempt
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79).Value = stafflistCurrentWeek.Cells(2, iii - 1).Value
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79).Font.Bold = True
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+    
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 82).Value = currentWorkWeek ' Week Number
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 83).Value = incorrectProjectCodeArray(iiii) ' Row
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 84).Value = "Project:" & incorrectProjectCodeArray(iiii + 1) & _
+                                                    " does not exist as an active project. Please re-check or ask office PA to add project"  ' Timesheet Issue
+                                                errorRecorded = errorRecorded + 1
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ' If row 4 is not empty loop through Staff Names. For each Staff Name check that there is no corresponding Attempt: Number
+                                        ' If the Attempt: Number to LHS matches current Attempt:Number then find first nonempty row and add error
+                                        ' If Attempt: Number does not match current Attempt:Number Then add new Attempt:Number
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                           
+                                        ElseIf Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79)) And Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)) Then
+                                         
+                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                            ' Find first empty row
+                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                            While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)))
+                                            
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ' While cycling for non empty rows check if there is an Attempt: Number to the LHS at each row
+                                                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                If stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79).Value = stafflistCurrentWeek.Cells(2, iii - 1).Value Then
+                                                    
+                                                    errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' If Attempt: Numbers match then find first empty row. We search for error row instead of attempt row
+                                                    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        
+                                                    While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80)))
+                                                        errorTrackingRowCounter = errorTrackingRowCounter + 1
+                                                    Wend
+                                                        
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        ' Input error information
+                                                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = currentWorkWeek ' Week Number
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 83).Value = incorrectProjectCodeArray(iiii) ' Row
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 84).Value = "Project:" & incorrectProjectCodeArray(iiii + 1) & _
+                                                            " does not exist as an active project. Please re-check or ask office PA to add project" ' Timesheet Issue
+                                                        errorRecorded = errorRecorded + 1
+                                                        GoTo nextInteration
+                                                
+                                                
+                                                End If
+                                                errorTrackingAttemptRowCounter = errorTrackingAttemptRowCounter + 1
+                                                'errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                            Wend
+                                         
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' If at end of errors and no match for attempts then Attempt: Number = New Attempt in list
+                                                    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                    
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' Records attempt number in the error tracking list and list all errors for this attempt
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 79).Value = stafflistCurrentWeek.Cells(2, iii - 1).Value   ' Attempt: Number
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 79).Font.Bold = True                                       ' Bold fonting Attempt Number
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value        ' Staff Name
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value        ' Staff Code
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = currentWorkWeek                                ' Work Week
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 83).Value = incorrectProjectCodeArray(iiii)                ' Row
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 84).Value = "Project:" & incorrectProjectCodeArray(iiii + 1) & _
+                                                        " does not exist as an active project. Please re-check or ask office PA to add project"                    ' Timesheet issue
+                                                    errorRecorded = errorRecorded + 1
+                                         
+                                         
+                                        End If
+                                        
+
+                                    
+        
+                                Else                                                        ' If a cell DOES contain a comment
+
+                                    
+                                    '' MsgBox "Current array Indexers used:" & iiii & " + " & iiii + 1
+                                    stafflistCurrentWeek.Cells(nn, iii).CommentThreaded.AddReply ("Row:" & incorrectProjectCodeArray(iiii) & vbNewLine & "Incorrect Project No." _
+                                        & incorrectProjectCodeArray(iiii + 1) & vbNewLine & "Edited: " & theDate) ' ADDs previous value of cell as comment for traceback
+
+                                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ' Records all incorrect timesheet rows and places them to the RHS of attempts with a row refernce + issue identified to send to PAD
+                                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                    
+                                    
+                                    
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ' If macro call contains >1 not active staffs, decrement errorTrackingAttemptRowCounter -1 to add error item under the same Attempt: Number
+                                        ' Failing to do this results in a Attempt: Number being created for each instance of not active staff
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        
+                                        If errorRecorded > 0 Then
+
+
+                                            If Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79)) And Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)) Then
+                                             
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ' Find first empty row
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)))
+                                                
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' While cycling for non empty rows check if there is an Attempt: Number to the LHS at each row
+                                                    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    If stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79).Value = stafflistCurrentWeek.Cells(2, iii - 1).Value Then
+                                                        
+                                                        errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        ' If Attempt: Numbers match then find first empty row. We search for error row instead of attempt row
+                                                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            
+                                                        While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80)))
+                                                            errorTrackingRowCounter = errorTrackingRowCounter + 1
+                                                        Wend
+                                                            
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            ' Input error information
+                                                            '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                            stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                            stafflistCurrentWeek.Cells(errorTrackingRowCounter, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                            stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = currentWorkWeek ' Week Number
+                                                            stafflistCurrentWeek.Cells(errorTrackingRowCounter, 83).Value = incorrectProjectCodeArray(iiii) ' Row
+                                                            stafflistCurrentWeek.Cells(errorTrackingRowCounter, 84).Value = "Project:" & incorrectProjectCodeArray(iiii + 1) & _
+                                                                " does not exist as an active project. Please re-check or ask office PA to add project"  ' Timesheet Issue
+                                                            errorRecorded = errorRecorded + 1
+                                                            GoTo nextInteration
+                                                    
+                                                    
+                                                    End If
+                                                    errorTrackingAttemptRowCounter = errorTrackingAttemptRowCounter + 1
+                                                    'errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                Wend
+                                            
+                                            End If
+                                        End If
+
+
+
+
+
+
+
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ' If row 4 is empty this is first error for staff list for current week. Therefore Attempt is 1
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                         
+                                        If IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79)) And IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 80)) Then
+                                            
+
+                                           
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ' Records attempt number in the error tracking list and list all errors for this attempt
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79).Value = stafflistCurrentWeek.Cells(2, iii - 1).Value
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 79).Font.Bold = True
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''
+    
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 82).Value = currentWorkWeek ' Week Number
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 83).Value = incorrectProjectCodeArray(iiii) ' Row
+                                                stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter + 1, 84).Value = "Project:" & incorrectProjectCodeArray(iiii + 1) & _
+                                                    " does not exist as an active project. Please re-check or ask office PA to add project"  ' Timesheet Issue
+                                                errorRecorded = errorRecorded + 1
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        ' If row 4 is not empty loop through Staff Names. For each Staff Name check that there is no corresponding Attempt: Number
+                                        ' If the Attempt: Number to LHS matches current Attempt:Number then find first nonempty row and add error
+                                        ' If Attempt: Number does not match current Attempt:Number Then add new Attempt:Number
+                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                           
+                                        ElseIf Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79)) And Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)) Then
+                                         
+                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                            ' Find first empty row
+                                            ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                            While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 80)))
+                                            
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                ' While cycling for non empty rows check if there is an Attempt: Number to the LHS at each row
+                                                '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                If stafflistCurrentWeek.Cells(errorTrackingAttemptRowCounter, 79).Value = stafflistCurrentWeek.Cells(2, iii - 1).Value Then
+                                                    
+                                                    errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' If Attempt: Numbers match then find first empty row. We search for error row instead of attempt row
+                                                    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        
+                                                    While (Not IsEmpty(stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80)))
+                                                        errorTrackingRowCounter = errorTrackingRowCounter + 1
+                                                    Wend
+                                                        
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        ' Input error information
+                                                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value ' Staff Name
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value ' Staff Code
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = currentWorkWeek ' Week Number
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 83).Value = incorrectProjectCodeArray(iiii) ' Row
+                                                        stafflistCurrentWeek.Cells(errorTrackingRowCounter, 84).Value = "Project:" & incorrectProjectCodeArray(iiii + 1) & _
+                                                            " does not exist as an active project. Please re-check or ask office PA to add project" ' Timesheet Issue
+                                                        errorRecorded = errorRecorded + 1
+                                                        GoTo nextInteration
+                                                
+                                                
+                                                End If
+                                                errorTrackingAttemptRowCounter = errorTrackingAttemptRowCounter + 1
+                                                'errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                            Wend
+                                         
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' If at end of errors and no match for attempts then Attempt: Number = New Attempt in list
+                                                    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    errorTrackingRowCounter = errorTrackingAttemptRowCounter
+                                                    
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    ' Records attempt number in the error tracking list and list all errors for this attempt
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 79).Value = stafflistCurrentWeek.Cells(2, iii - 1).Value   ' Attempt: Number
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 79).Font.Bold = True                                       ' Bold fonting Attempt Number
+                                                    ''''''''''''''''''''''''''''''''''''''''''''''''''
+
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value        ' Staff Name
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value        ' Staff Code
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 82).Value = currentWorkWeek                                ' Work Week
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 83).Value = incorrectProjectCodeArray(iiii)                ' Row
+                                                    stafflistCurrentWeek.Cells(errorTrackingRowCounter, 84).Value = "Project:" & incorrectProjectCodeArray(iiii + 1) & _
+                                                        " does not exist as an active project. Please re-check or ask office PA to add project"                    ' Timesheet issue
+                                                    errorRecorded = errorRecorded + 1
+                                         
+                                         
+                                        End If
+                                End If
+
+
+
+nextInteration:
+                                iiii = iiii + 2
+                             Loop
+                        Exit For
+                        End If
+                
+                Next nn
+    End If
+    
+    staffTimesheet.Close
+    Set staffTimesheet = Nothing
+    projects.Close SaveChanges:=False
+    Set projects = Nothing
+    
+    
+    '''''''''''''''''''''''''''''''
+    
+    Set projectNumbers = Nothing
+    
+    
+    Set stafftimesheetCurrentWorkweek = Nothing
+    '''''''''''''''''''''''''''''''
+    
+End Sub
