@@ -1,0 +1,180 @@
+Sub activeStaff(TheSourceFile, theProjectCCFile, staffCode, currentWorkWeek)
+
+
+
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' This macro check if staff is authorised to add hours to the project numbers in the staffs timesheet
+'
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    
+    
+    
+    
+'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+' ARUGMENTS
+' TheSourceFile = The staff timesheet file path
+' theProjectCCFile = The file path that holds a list of what staff is authorised to add to what project number
+' staffCode = unique staff identifer
+' currentWorkWeek = the current work week
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    
+    
+    Dim staffTimesheet As Workbook
+    Set staffTimesheet = Workbooks.Open(TheSourceFile, 0, True)
+    
+    currentWorkWeek1 = "WW" + CStr(currentWorkWeek)
+    Dim stafftimesheetCurrentWorkweek As Worksheet
+    Set stafftimesheetCurrentWorkweek = staffTimesheet.Worksheets(currentWorkWeek1)
+    
+    Dim projectCCFile As Workbook
+    Set projectCCFile = Workbooks.Open(theProjectCCFile, 0, True)
+    
+    Dim projectCCRates As Worksheet
+    Set projectCCRates = projectCCFile.Worksheets("Rates")
+    
+    Dim projectCCEntry As Worksheet
+    Set projectCCEntry = projectCCFile.Worksheets("Entry")
+    Dim projectNumber As String
+    projectNumber = projectCCEntry.Cells(2, 1).Value
+    
+    Dim stafflistCurrentWeek As Worksheet
+    Set stafflistCurrentWeek = ThisWorkbook.Worksheets(currentWorkWeek1)
+
+
+
+    Dim last_row As Integer
+    last_row = stafflistCurrentWeek.Cells(Rows.count, 1).End(xlUp).Row    ' gets last used row in in in project number list
+    
+    Dim last_column As Integer
+    last_column = projectCCFile.Worksheets("Rates").Cells(10, Columns.count).End(xlToLeft).Column    ' gets last used row in in in project number list
+    'last_column = master.Cells(2, Columns.count).End(xlToLeft).Column
+    Dim staffCode1 As String
+    staffCode1 = CStr(staffCode)                                                            ' CONVERTS staffCode into string
+    
+    Dim count
+    Dim count1
+    count = 0
+    count1 = 1
+       
+    
+    Dim iii As Integer                  ' starting column for activeStaff check
+    iii = 7
+
+    
+    '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    ' This section assigned Pass or Fail depending if staff code is found in the project code entered in the row of the staffs timesheet
+    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+      If count > 0 Then              ' IF count = count 1 then all of the entered project numbers exist as active project numbers in the project list file
+        For nn = 4 To last_row       ' RANGE of rows used in Stafflist. starts from 4 as need room for the column title
+                       ' ' MsgBox "last row:" & last_row
+                      ' row one holds the headings Staff name, Staff intials, Staff code and timesheet path
+                       ' ' MsgBox "Pointing @:" & stafflistCurrentWeek.Cells(nn, 2).Value & "Input staffcode:" & staffCode
+                        If staffCode = CStr(stafflistCurrentWeek.Cells(nn, 2).Value) Then
+                        While Not IsEmpty(stafflistCurrentWeek.Cells(nn, iii).Value)
+                            iii = iii + 5
+                        '' MsgBox "0--Row:" & nn & vbNewLine & "Column:" & iii
+                        Wend
+                       ' ' MsgBox "1--Row:" & nn & vbNewLine & "Column:" & iii
+                        stafflistCurrentWeek.Cells(nn, iii).Value = "Pass"       ' GET Staff name from stafflist workbook
+                        Exit For
+                        End If
+                
+                Next nn
+    ElseIf count = 0 Then         ' IF count != count 1 then all of the entered project numbers do not exist as active project numbers in the project list file
+        For nn = 4 To last_row       ' RANGE of rows used in Stafflist. starts from 2 as need room for the column title
+                    '' MsgBox "last row:" & last_row
+   '                 nnn = 2                     ' row one holds the headings Staff name, Staff intials, Staff code and timesheet path
+                      '  ' MsgBox "Pointing @:" & stafflistCurrentWeek.Cells(nn, 2).Value
+                     
+                        If staffCode = stafflistCurrentWeek.Cells(nn, 2).Value Then
+                         '' MsgBox "Pointing @:" & stafflistCurrentWeek.Cells(nn, 2).Value & vbNewLine & "Row:" & nn & "Column:" & iii
+                            While Not IsEmpty(stafflistCurrentWeek.Cells(nn, iii).Value)
+                                iii = iii + 5
+                                    
+                            Wend
+                          
+                            stafflistCurrentWeek.Cells(nn, iii).Value = "Fail"      ' GET Staff name from stafflist workbook
+                            
+                            Dim theDate As Date
+                            theDate = Now()
+    
+                           ' ' MsgBox "indexer max:" & counter
+                  
+                            Dim iiii As Integer
+                            iiii = 0
+                           
+                            
+                          ' Do While iiii < counter                  ' loop until first empty array element and add array values as comments for tracking
+                                
+                                Dim iiiii As Integer
+                                    iiiii = 3
+                                If stafflistCurrentWeek.Cells(nn, iii).CommentThreaded Is Nothing Then      ' If the cell DOES NOT contain a comment
+        
+                                    stafflistCurrentWeek.Cells(nn, iii).AddCommentThreaded ("Staff code not not listed as active staff code for project: " & projectNumber & vbNewLine _
+                                         & "Edited: " & theDate) ' ADDs previous value of cell as comment for traceback
+                                        '' MsgBox "Array Indexers used:" & iiii & " + " & iiii + 1
+                                        
+                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                        ' Records all incorrect timesheet rows and places them to the RHS of attempts with a row refernce + issue identified to send to PAD
+                        '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+                                        
+                                        
+                                        While Not IsEmpty(stafflistCurrentWeek.Cells(iiiii, 80))
+                                           ' ' MsgBox "Row:" & iiiii
+                                            iiiii = iiiii + 1
+                                        Wend
+                                        
+                                        stafflistCurrentWeek.Cells(iiiii, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value
+                                        stafflistCurrentWeek.Cells(iiiii, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value
+                                        stafflistCurrentWeek.Cells(iiiii, 82).Value = currentWorkWeek
+                                        'stafflistCurrentWeek.Cells(iiiii, 83).Value = incorrectProjectCodeArray(iiii)
+                                        stafflistCurrentWeek.Cells(iiiii, 84).Value = "Staff code not not listed as active staff code for project: " & projectNumber
+                                        ''''''''''''''''''''''''''''''''''''''
+                                    
+        
+                                Else                                                        ' If a cell DOES contain a comment
+
+                                    
+                                        '' MsgBox "Current array Indexers used:" & iiii & " + " & iiii + 1
+                                        stafflistCurrentWeek.Cells(nn, iii).CommentThreaded.AddReply ("Staff code not not listed as active staff code for project: " & projectNumber & vbNewLine _
+                                         & "Edited: " & theDate) ' ADDs previous value of cell as comment for traceback
+                                        
+                                        ' Add incorrect timesheet info at bottom of sheet to feed PAD
+                                        While Not IsEmpty(stafflistCurrentWeek.Cells(iiiii, 80))
+
+                                            iiiii = iiiii + 1
+                                        Wend
+                                        
+                                        stafflistCurrentWeek.Cells(iiiii, 80).Value = stafflistCurrentWeek.Cells(nn, 1).Value
+                                        stafflistCurrentWeek.Cells(iiiii, 81).Value = stafflistCurrentWeek.Cells(nn, 2).Value
+                                        stafflistCurrentWeek.Cells(iiiii, 82).Value = currentWorkWeek
+                                        'stafflistCurrentWeek.Cells(iiiii, 83).Value = incorrectProjectCodeArray(iiii)
+                                        stafflistCurrentWeek.Cells(iiiii, 84).Value = "Staff code not not listed as active staff code for project: " & projectNumber
+                                End If
+                                
+                                iiii = iiii + 2
+                             'Loop
+                        Exit For
+                        End If
+                
+                Next nn
+    End If
+    ''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+    staffTimesheet.Close
+    Set staffTimesheet = Nothing
+    projectCCFile.Close
+    Set projectCCFile = Nothing
+    Set projectCCRates = Nothing
+    Set projectCCEntry = Nothing
+    
+    ''''''''''''''''''''''''''''''''
+    stafflistCurrentWeek.Close
+    ''''''''''''''''''''''''''''''''
+    Set stafflistCurrentWeek = Nothing
+    
+    
+
+End Sub
